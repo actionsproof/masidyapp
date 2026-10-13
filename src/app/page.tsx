@@ -3,7 +3,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
 // Sign-in and data calls go through /sb on our own domain, so the browser never contacts the database supplier directly.
-const sb = createClient(typeof window !== 'undefined' ? `${window.location.origin}/sb` : process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+const sb = createClient(
+  typeof window !== 'undefined' ? `${window.location.origin}/sb` : (process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost'),
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'build-placeholder',
+)
 const ROOT = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? ''
 
 // Masidy address first; the custom domain takes over once DNS is verified.
