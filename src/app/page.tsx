@@ -8,6 +8,7 @@ const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'build-placeholder',
 )
 const ROOT = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? ''
+const AUTH_REDIRECT = process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL
 
 // Masidy address first; the custom domain takes over once DNS is verified.
 const primaryUrl = (a: any) => a.custom_domain && a.custom_domain_verified ? `https://${a.custom_domain}` : a.subdomain ? `https://${a.subdomain}.${ROOT}` : null
@@ -61,8 +62,21 @@ export default function Home() {
   }, [])
   useEffect(() => { if (session) load() }, [session, load])
   useEffect(() => { // finish sign-in from the email link (the link stays on our own domain)
-    const q = new URLSearchParams(location.search); const th = q.get('token_hash'); const type = q.get('type')
-    if (th && type) sb.auth.verifyOtp({ token_hash: th, type: type as any }).then(() => history.replaceState(null, '', '/'))
+    const q = new URLSearchParams(location.search)
+    const code = q.get('code')
+    const tokenHash = q.get('token_hash')
+    const type = q.get('type')
+    if (code) {
+      sb.auth.exchangeCodeForSession(code).then(({ error }) => {
+        if (error) setMsg(error.message)
+        else history.replaceState(null, '', '/')
+      })
+    } else if (tokenHash && type) {
+      sb.auth.verifyOtp({ token_hash: tokenHash, type: type as any }).then(({ error }) => {
+        if (error) setMsg(error.message)
+        else history.replaceState(null, '', '/')
+      })
+    }
   }, [])
 
   const auth = () => ({ Authorization: `Bearer ${session.access_token}` })
@@ -185,7 +199,13 @@ export default function Home() {
     <main style={{ maxWidth: 400, margin: '20vh auto', padding: 16 }}>
       <h1>Sign in to Masidy</h1>
       <input value={email} onChange={e => setEmail(e.target.value)} placeholder="you@email.com" style={{ width: '100%', padding: 8 }} />
-      <button onClick={async () => { await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin } }); setMsg('Check your email for the login link') }}>Send magic link</button>
+      <button onClick={async () => {
+        const { error } = await sb.auth.signInWithOtp({
+          email,
+          options: { emailRedirectTo: AUTH_REDIRECT || window.location.origin },
+        })
+        setMsg(error ? error.message : 'Check your email for the login link')
+      }}>Send magic link</button>
       <p>{msg}</p>
     </main>
   )
