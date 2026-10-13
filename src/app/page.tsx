@@ -10,6 +10,11 @@ const sb = createClient(
 const ROOT = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? ''
 const AUTH_REDIRECT = process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL
 
+function authRedirectUrl() {
+  if (typeof window === 'undefined') return AUTH_REDIRECT || undefined
+  return `${window.location.origin}/auth/callback`
+}
+
 // Masidy address first; the custom domain takes over once DNS is verified.
 const primaryUrl = (a: any) => a.custom_domain && a.custom_domain_verified ? `https://${a.custom_domain}` : a.subdomain ? `https://${a.subdomain}.${ROOT}` : null
 
@@ -202,7 +207,7 @@ export default function Home() {
       <button onClick={async () => {
         const { error } = await sb.auth.signInWithOtp({
           email,
-          options: { emailRedirectTo: AUTH_REDIRECT || window.location.origin },
+          options: { emailRedirectTo: authRedirectUrl() },
         })
         setMsg(error ? error.message : 'Check your email for the login link')
       }}>Send magic link</button>
