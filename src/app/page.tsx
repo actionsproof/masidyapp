@@ -201,28 +201,30 @@ export default function Home() {
   }
 
   if (!session) return (
-    <main className="auth-screen">
-      <section className="auth-card" aria-labelledby="auth-title">
-        <div className="brand-mark" aria-hidden="true">M</div>
-        <p className="eyebrow">Masidy / Build studio</p>
-        <h1 id="auth-title">Turn an idea into something real.</h1>
-        <p className="auth-copy">Describe your product. Masidy creates the interface, connects the backend, and gets it ready to ship.</p>
-        <form onSubmit={async e => {
-          e.preventDefault()
-          const { error } = await sb.auth.signInWithOtp({
-            email,
-            options: { emailRedirectTo: authRedirectUrl() },
-          })
-          setMsg(error ? error.message : 'Check your email for the login link')
-        }}>
-          <label htmlFor="email">Your email</label>
-          <input id="email" type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" autoComplete="email" />
-          <button type="submit">Continue with email</button>
-        </form>
-        <p className="auth-note">We&apos;ll send a secure magic link. No password to remember.</p>
-        {msg && <p className="status-message" role="status">{msg}</p>}
+    <main className="landing-shell">
+      <nav className="landing-nav" aria-label="Primary navigation">
+        <a className="wordmark" href="/" aria-label="Masidy home"><span className="wordmark-mark">M</span> masidy</a>
+        <div className="landing-links"><a href="#workflow">How it works</a><a href="#capabilities">Capabilities</a><a href="#signin">Sign in</a></div>
+        <a className="nav-cta" href="#signin">Start building <span aria-hidden="true">↗</span></a>
+      </nav>
+      <section className="landing-hero" aria-labelledby="landing-title">
+        <div className="hero-copy">
+          <p className="eyebrow"><span className="live-dot" /> The private AI workspace for shipping software</p>
+          <h1 id="landing-title">Build the thing<br /><em>you&apos;ve been thinking about.</em></h1>
+          <p className="hero-lede">Masidy turns plain language into a real, editable application. Explore the result, refine the code, connect your data, and deploy when it&apos;s ready.</p>
+          <div className="hero-actions"><a className="primary-cta" href="#signin">Create a project <span aria-hidden="true">→</span></a><a className="text-cta" href="#workflow">See how it works <span aria-hidden="true">↓</span></a></div>
+          <p className="trust-line">No setup maze. No provider logos. Just your product, under your brand.</p>
+        </div>
+        <div className="hero-workspace" aria-label="Preview of the Masidy workspace">
+          <div className="window-bar"><span className="window-dots"><i /><i /><i /></span><span>masidy / new project</span><span className="window-status"><span className="live-dot" /> ready</span></div>
+          <div className="workspace-body"><aside className="mini-sidebar"><strong>masidy</strong><span className="mini-new">+ New project</span><small>PROJECTS</small><span className="mini-active">SaaS dashboard</span><span>Landing page</span><span>Mobile companion</span><small>WORKSPACE</small><span>Settings</span></aside><div className="mini-main"><div className="mini-prompt"><span>Describe what you want to build...</span><b>↗</b></div><div className="mini-canvas"><div className="canvas-label">LIVE PREVIEW</div><div className="canvas-card"><span className="canvas-kicker">GOOD MORNING, ALEX</span><strong>Your work,<br />in one clear view.</strong><div className="canvas-bars"><i /><i /><i /><i /></div></div></div><div className="mini-tabs"><b>Preview</b><span>Code</span><span>Versions</span><span>Deploy</span></div></div></div>
+        </div>
       </section>
-      <p className="auth-footer">A private, white-label workspace by Masidy.</p>
+      <section className="proof-strip"><span>From first prompt to live product</span><b>01 / imagine</b><b>02 / refine</b><b>03 / ship</b></section>
+      <section id="workflow" className="landing-section"><p className="section-index">01 / THE WORKFLOW</p><div><h2>One workspace.<br /><em>Every step.</em></h2><p className="section-copy">Start with a sentence and stay in the flow. Masidy keeps the messy parts—files, data, environments, versions—close at hand without putting them in your way.</p></div></section>
+      <section id="capabilities" className="capability-grid"><article><span>01</span><h3>Generate</h3><p>Describe a product or a change. Get a working interface and the foundations behind it.</p></article><article><span>02</span><h3>Shape</h3><p>Use the built-in preview, code editor, chat, and versions to make it yours.</p></article><article><span>03</span><h3>Ship</h3><p>Connect your environment, share a branded URL, and deploy the version you trust.</p></article></section>
+      <section id="signin" className="signin-section"><div><p className="eyebrow">Masidy / Build studio</p><h2>Your next project<br /><em>starts here.</em></h2><p>Sign in to open your workspace or create your first project.</p></div><div className="auth-card"><div className="brand-mark" aria-hidden="true">M</div><h3>Open your workspace</h3><p className="auth-copy">We&apos;ll send a secure magic link. No password to remember.</p><form onSubmit={async e => { e.preventDefault(); const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: authRedirectUrl() } }); setMsg(error ? error.message : 'Check your email for the login link') }}><label htmlFor="email">Your email</label><input id="email" type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" autoComplete="email" /><button type="submit">Continue with email <span aria-hidden="true">→</span></button></form>{msg && <p className="status-message" role="status">{msg}</p>}</div></section>
+      <footer className="landing-footer"><a className="wordmark" href="/" aria-label="Masidy home"><span className="wordmark-mark">M</span> masidy</a><span>Private software creation, made simple.</span><span>© 2026 Masidy</span></footer>
     </main>
   )
 
