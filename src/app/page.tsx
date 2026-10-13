@@ -11,8 +11,8 @@ const ROOT = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? ''
 const AUTH_REDIRECT = process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL
 
 function authRedirectUrl() {
-  if (typeof window === 'undefined') return AUTH_REDIRECT || undefined
-  return `${window.location.origin}/auth/callback`
+  if (typeof window !== 'undefined') return `${window.location.origin}/auth/callback`
+  return AUTH_REDIRECT || undefined
 }
 
 // Masidy address first; the custom domain takes over once DNS is verified.
@@ -201,17 +201,28 @@ export default function Home() {
   }
 
   if (!session) return (
-    <main style={{ maxWidth: 400, margin: '20vh auto', padding: 16 }}>
-      <h1>Sign in to Masidy</h1>
-      <input value={email} onChange={e => setEmail(e.target.value)} placeholder="you@email.com" style={{ width: '100%', padding: 8 }} />
-      <button onClick={async () => {
-        const { error } = await sb.auth.signInWithOtp({
-          email,
-          options: { emailRedirectTo: authRedirectUrl() },
-        })
-        setMsg(error ? error.message : 'Check your email for the login link')
-      }}>Send magic link</button>
-      <p>{msg}</p>
+    <main className="auth-screen">
+      <section className="auth-card" aria-labelledby="auth-title">
+        <div className="brand-mark" aria-hidden="true">M</div>
+        <p className="eyebrow">Masidy / Build studio</p>
+        <h1 id="auth-title">Turn an idea into something real.</h1>
+        <p className="auth-copy">Describe your product. Masidy creates the interface, connects the backend, and gets it ready to ship.</p>
+        <form onSubmit={async e => {
+          e.preventDefault()
+          const { error } = await sb.auth.signInWithOtp({
+            email,
+            options: { emailRedirectTo: authRedirectUrl() },
+          })
+          setMsg(error ? error.message : 'Check your email for the login link')
+        }}>
+          <label htmlFor="email">Your email</label>
+          <input id="email" type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" autoComplete="email" />
+          <button type="submit">Continue with email</button>
+        </form>
+        <p className="auth-note">We&apos;ll send a secure magic link. No password to remember.</p>
+        {msg && <p className="status-message" role="status">{msg}</p>}
+      </section>
+      <p className="auth-footer">A private, white-label workspace by Masidy.</p>
     </main>
   )
 
