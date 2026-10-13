@@ -1,0 +1,9 @@
+<!-- Paste into: Auth > Email Templates > Magic Link. Subject: "Sign in to Masidy" -->
+<div style="font-family:system-ui,sans-serif;max-width:480px;margin:auto;padding:24px">
+  <h2>Sign in to Masidy</h2>
+  <p>Press the button to sign in. The link works once and expires soon.</p>
+  <p><a href="{{ .SiteURL }}/?token_hash={{ .TokenHash }}&type=email"
+        style="background:#111;color:#fff;padding:12px 20px;border-radius:6px;text-decoration:none">Sign in</a></p>
+  <p style="color:#666;font-size:13px">If you did not ask for this, you can ignore this email.</p>
+  <p style="color:#666;font-size:13px">Masidy</p>
+</div>
