@@ -1,0 +1,62 @@
+@import 'tailwindcss';
+
+:root {
+  --ink: #151515;
+  --muted: #6f706d;
+  --line: #dfdfd8;
+  --paper: #f7f7f4;
+  --panel: #ffffff;
+  --accent: #d6f36b;
+  --accent-strong: #b8dc42;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--paper); }
+body { margin: 0; color: var(--ink); background: var(--paper); font-family: Arial, Helvetica, sans-serif; }
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; border: 1px solid var(--ink); border-radius: 999px; background: var(--ink); color: white; padding: 9px 14px; transition: transform .15s ease, background .15s ease; }
+button:hover:not(:disabled) { transform: translateY(-1px); background: #333; }
+button:disabled { cursor: not-allowed; opacity: .45; }
+input, textarea, select { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); padding: 10px 12px; }
+textarea:focus, input:focus, select:focus { outline: 2px solid var(--accent-strong); outline-offset: 1px; }
+a { color: inherit; }
+
+main { min-height: 100vh; }
+main > aside { border-right: 1px solid var(--line); padding: 18px 18px 28px 0; }
+main > aside h2 { font-size: 24px; letter-spacing: -.06em; }
+main > aside p { color: var(--muted); font-size: 13px; }
+main > aside button { margin: 2px; }
+main > aside ul { margin-top: 24px; }
+main > aside li button { width: 100%; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; background: transparent; border-color: transparent; color: var(--ink); }
+main > aside li button:hover { background: #ecece5; transform: none; }
+main > section { min-width: 0; padding: 18px 0 48px; }
+main > section > textarea { min-height: 84px; resize: vertical; font-size: 17px; line-height: 1.4; }
+main > section > textarea + select { margin-top: 10px; }
+main > section > p, main > section > span { color: var(--muted); font-size: 13px; }
+main > section iframe { display: block; border: 1px solid var(--line) !important; border-radius: 16px; background: white; }
+details { margin: 16px 0; border-top: 1px solid var(--line); padding-top: 12px; }
+summary { cursor: pointer; font-weight: 700; }
+pre { overflow: auto; border-radius: 10px; background: #20221f; color: #eff5d2; padding: 12px; font-size: 12px; }
+
+@media (max-width: 720px) {
+  main { display: block !important; padding: 12px !important; }
+  main > aside { border-right: 0; border-bottom: 1px solid var(--line); padding: 8px 0 14px; }
+  main > aside h2 { display: inline-block; margin: 0 14px 0 0 !important; }
+  main > aside p { display: inline; }
+  main > aside details { margin: 12px 0 8px; }
+  main > aside ul { display: flex; gap: 6px; overflow-x: auto; margin: 12px 0 0; padding-bottom: 3px !important; }
+  main > aside li { flex: 0 0 auto; width: 150px; }
+  main > section { padding-top: 14px; }
+  main > section > textarea { font-size: 16px; }
+  main > section iframe { height: 58vh !important; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
+
+main[style*="max-width: 400px"] { max-width: 440px !important; margin: 0 auto !important; min-height: 100vh; display: grid; align-content: center; padding: 24px !important; }
+main[style*="max-width: 400px"] h1 { font-size: clamp(38px, 10vw, 58px); letter-spacing: -.07em; line-height: .95; margin: 0 0 28px; }
+main[style*="max-width: 400px"] input { width: 100% !important; margin-bottom: 10px; }
+main[style*="max-width: 400px"] button { width: 100%; }
+main[style*="max-width: 400px"] p { color: var(--muted); }
+main[style*="max-width: 400px"]::before { content: 'M'; display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 20px; border-radius: 14px; background: var(--accent); font-weight: 900; }
+
+button[style*="crimson"] { border-color: #c44; color: #b22; background: transparent; }

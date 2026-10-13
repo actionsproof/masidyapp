@@ -1,14 +1,22 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
+import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Masidy',
-  description: 'Describe an app. Masidy builds it and puts it live.',
+  title: 'Masidy — Build and ship software',
+  description: 'Describe what you need. Masidy builds it, previews it, and puts it live.',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  userScalable: true,
+  themeColor: '#f7f7f4',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body style={{ fontFamily: 'system-ui, sans-serif', margin: 0 }}>{children}</body>
+      <body>{children}</body>
     </html>
   )
 }

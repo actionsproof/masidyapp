@@ -16,6 +16,7 @@ export async function POST(req: Request) {
     client_reference_id: user.id,
     customer_email: user.email ?? undefined,
     metadata: { pack },
+    integration_identifier: `masidy_${Math.random().toString(36).slice(2, 10)}`,
     success_url: `${site}/?paid=1`,
     cancel_url: `${site}/`,
   })
