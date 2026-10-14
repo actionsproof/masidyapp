@@ -64,7 +64,8 @@ Code already shows only "Masidy" in the UI, errors, and addresses. These need se
 6. Public legal pages use provider categories only. Privacy laws may require a subprocessor list on request: keep a private one ready.
 
 ## Workspace features (v0-style)
-Tabs per app: Preview, Code (view and edit files), Chat (history), Versions (preview, restore as new app, deploy a chosen version), Share (download zip, push to GitHub, domains, delete).
+The signed-in workspace has Home, Projects, Chats, Design Systems, and Templates navigation, project search, and a project list. Templates and design directions are prompt presets; saved/custom design-system management is not implemented.
+Each project has Preview, Code (view and edit files), Chat (history), Versions (preview, restore as new app, publish a chosen version), and Share (download zip, push to GitHub, domains, environment variables, delete). The project toolbar's Settings shortcut opens Share.
 Import (sidebar): zip upload, or a public GitHub repo URL.
 The workspace subscribes to Postgres Changes on `public.apps` for the signed-in owner's rows and reloads the app list after changes and reconnects. Before enabling it in Supabase, confirm this is the project used by the deployment, add `apps` to the `supabase_realtime` publication, and ensure `apps` has an owner-scoped `SELECT` RLS policy. The subscription filter is not an authorization boundary. Generation status still polls the external generator because it only reaches Postgres when this app writes the resulting status.
 
