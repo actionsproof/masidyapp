@@ -11,6 +11,8 @@ export async function POST(req: Request) {
   const { prompt, appId, quality, attachments } = await req.json()
   if (typeof prompt !== 'string' || prompt.length < 3 || prompt.length > 2000)
     return Response.json({ error: 'Prompt must be 3-2000 characters' }, { status: 400 })
+  if (!process.env.V0_API_KEY)
+    return Response.json({ error: 'Generation is not configured yet. Please contact support.' }, { status: 503 })
   const atts: string[] = Array.isArray(attachments) ? attachments.filter((u: any) => typeof u === 'string' && u.startsWith(ATT_PREFIX)).slice(0, 3) : []
 
   let app: any = null
