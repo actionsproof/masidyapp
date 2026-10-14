@@ -1,12 +1,8 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { realtimeSupabase, supabase as sb } from '@/lib/browser-supabase'
 
 // Sign-in and data calls go through /sb on our own domain, so the browser never contacts the database supplier directly.
-const sb = createClient(
-  typeof window !== 'undefined' ? `${window.location.origin}/sb` : (process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost'),
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'build-placeholder',
-)
 const ROOT = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? ''
 const AUTH_REDIRECT = process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL
 
@@ -71,27 +67,39 @@ export default function Home() {
   useEffect(() => { if (session) load() }, [session, load])
   useEffect(() => {
     const userId = session?.user?.id
-    if (!userId) return
+    const accessToken = session?.access_token
+    if (!userId || !accessToken) return
 
     let hasConnected = false
-    const channel = sb.channel(`workspace:apps:${userId}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'apps',
-        filter: `owner_id=eq.${userId}`,
-      }, () => { void load() })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          if (hasConnected) void load()
-          hasConnected = true
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          setMsg('Live app updates are unavailable. Refresh to sync your workspace.')
-        }
-      })
+    let cancelled = false
+    let channel: ReturnType<typeof realtimeSupabase.channel> | undefined
 
-    return () => { void sb.removeChannel(channel) }
-  }, [session?.user?.id, load])
+    void (async () => {
+      await realtimeSupabase.realtime.setAuth(accessToken)
+      if (cancelled) return
+
+      channel = realtimeSupabase.channel(`workspace:apps:${userId}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'apps',
+          filter: `owner_id=eq.${userId}`,
+        }, () => { void load() })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            if (hasConnected) void load()
+            hasConnected = true
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            setMsg('Live app updates are unavailable. Refresh to sync your workspace.')
+          }
+        })
+    })()
+
+    return () => {
+      cancelled = true
+      if (channel) void realtimeSupabase.removeChannel(channel)
+    }
+  }, [session?.user?.id, session?.access_token, load])
   useEffect(() => {
     if (!session || !launchAfterAuth || !prompt.trim()) return
     let cancelled = false

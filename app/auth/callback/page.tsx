@@ -2,17 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '@/lib/browser-supabase'
 
 export default function AuthCallbackPage() {
   const router = useRouter()
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const supabase = createClient(
-      `${window.location.origin}/sb`,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'build-placeholder',
-    )
     const params = new URLSearchParams(window.location.search)
     const hashParams = new URLSearchParams(window.location.hash.slice(1))
     const code = params.get('code')
