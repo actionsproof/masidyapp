@@ -53,6 +53,7 @@ export default function Home() {
   const [envKeys, setEnvKeys] = useState<string[]>([])
   const [envKey, setEnvKey] = useState('')
   const [envVal, setEnvVal] = useState('')
+  const [launchAfterAuth, setLaunchAfterAuth] = useState(false)
 
   const load = useCallback(async () => {
     const a = await sb.from('apps').select('id,name,status,subdomain,custom_domain,custom_domain_verified,github_repo,gen_status').order('created_at', { ascending: false })
@@ -67,6 +68,19 @@ export default function Home() {
     return () => data.subscription.unsubscribe()
   }, [])
   useEffect(() => { if (session) load() }, [session, load])
+  useEffect(() => {
+    if (!session || !launchAfterAuth || !prompt.trim()) return
+    let cancelled = false
+    ;(async () => {
+      setMsg('Opening your Masidy workspace…')
+      for (const file of landingFiles) await attach(file)
+      if (!cancelled) {
+        setLaunchAfterAuth(false)
+        await generate()
+      }
+    })()
+    return () => { cancelled = true }
+  }, [session, launchAfterAuth]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { // finish sign-in from the email link (the link stays on our own domain)
     const q = new URLSearchParams(location.search)
     const code = q.get('code')
@@ -203,6 +217,7 @@ export default function Home() {
   function startFromLanding(e: React.FormEvent) {
     e.preventDefault()
     if (!prompt.trim()) return
+    setLaunchAfterAuth(true)
     document.getElementById('signin')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     setMsg(landingFiles.length ? `Your prompt and ${landingFiles.length} file${landingFiles.length === 1 ? '' : 's'} are ready. Continue with email to open your workspace.` : 'Your prompt is ready. Continue with email to open your workspace.')
   }
