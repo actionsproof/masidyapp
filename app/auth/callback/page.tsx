@@ -14,16 +14,29 @@ export default function AuthCallbackPage() {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'build-placeholder',
     )
     const params = new URLSearchParams(window.location.search)
+    const hashParams = new URLSearchParams(window.location.hash.slice(1))
     const code = params.get('code')
-    const tokenHash = params.get('token_hash')
-    const type = params.get('type')
+    const tokenHash = params.get('token_hash') ?? hashParams.get('token_hash')
+    const type = params.get('type') ?? hashParams.get('type')
+    const authError = params.get('error_description') ?? hashParams.get('error_description')
 
     const finish = async () => {
+      if (authError) {
+        setError(authError)
+        return
+      }
+
+      if (!code && !(tokenHash && type)) {
+        const { data, error } = await supabase.auth.getSession()
+        if (error) setError(error.message)
+        else if (data.session) router.replace('/')
+        else setError('This sign-in link is missing its verification code.')
+        return
+      }
+
       const result = code
         ? await supabase.auth.exchangeCodeForSession(code)
-        : tokenHash && type
-          ? await supabase.auth.verifyOtp({ token_hash: tokenHash, type: type as any })
-          : { error: new Error('This sign-in link is missing its verification code.') }
+        : await supabase.auth.verifyOtp({ token_hash: tokenHash!, type: type as any })
       if (result.error) setError(result.error.message)
       else router.replace('/')
     }
