@@ -46,7 +46,22 @@ export async function POST(req: Request) {
     return Response.json({ appId: id })
   } catch (e) {
     console.error(e)
-    await admin.rpc('refund_credits', { p_user: user.id, p_amount: cost, p_app: app?.id ?? null })
+    const { data: refunded, error: refundError } = await admin.rpc('refund_credits', {
+      p_user: user.id,
+      p_amount: cost,
+      p_app: app?.id ?? null,
+    })
+    if (refundError || !refunded) {
+      console.error('Generation credit refund could not be confirmed', refundError ?? 'No matching charge')
+      return Response.json({ error: 'Generation failed and the credit refund could not be confirmed. Please contact support.' }, { status: 500 })
+    }
+
+    if (e instanceof Error && e.message.startsWith('HTTP 429:')) {
+      return Response.json({
+        error: 'The AI provider has reached its generation limit. Your credit was refunded; please try again later.',
+      }, { status: 429 })
+    }
+
     return Response.json({ error: 'Generation failed' }, { status: 500 })
   }
 }
