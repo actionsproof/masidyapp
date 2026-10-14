@@ -3,8 +3,8 @@
 1. `npx create-next-app@latest myapp --ts --app --src-dir --import-alias "@/*"`
 2. Copy `src/` and `.env.example` into `myapp/` (overwrite page.tsx).
 3. `npm i v0-sdk @supabase/supabase-js @vercel/sdk stripe jszip`
-4. Supabase SQL Editor: run `supabase_schema.sql`, then `supabase_migration_2.sql`, then `supabase_migration_3.sql`, then `supabase_migration_4.sql`.
-5. Supabase > Auth > URL Configuration: add http://localhost:3000 and your Vercel URL.
+4. Apply `supabase/migrations/20261014113000_initial_schema.sql` to the Supabase project configured in Vercel.
+5. Supabase > Auth > URL Configuration: set the Site URL to `https://www.masidy.app` and allow `https://www.masidy.app/auth/callback` and `http://localhost:3000/auth/callback`.
 6. `.env.local`: fill all values. Also add `NEXT_PUBLIC_ROOT_DOMAIN` (same value as ROOT_DOMAIN).
 7. Domains: add ROOT_DOMAIN to your Vercel account and point its nameservers to Vercel (needed for wildcard subdomains).
 8. `npm run dev`, then deploy to Vercel with the same env vars.
@@ -50,7 +50,7 @@ Do these in order; stop at the first failure.
 - Every app gets `name-xxxx.masidy.app` automatically at deploy. The name `app` is reserved for Masidy's own dashboard.
 - Custom domain: user adds it, a cron job (every 15 min) checks DNS and flips it live when verified. The Masidy address keeps working.
 - Buy a domain: user searches, pays Masidy through Stripe (cost + DOMAIN_MARKUP_PERCENT). After payment the server registers it, attaches it to the app, and refunds automatically if anything fails.
-- Run `supabase_migration_5.sql`. Set CRON_SECRET (Vercel sends it to the cron route). `vercel.json` holds the schedule.
+- The initial Supabase migration creates the domain order table. Set CRON_SECRET (Vercel sends it to the cron route). `vercel.json` holds the schedule.
 - VERIFY in `src/lib/registrar.ts`: price and purchase field names against https://openapi.vercel.sh/ and test one real purchase with a cheap domain.
 - Decide your policy: who is the registrant, and can users transfer a bought domain out? Put it in your Terms.
 
@@ -66,11 +66,12 @@ Code already shows only "Masidy" in the UI, errors, and addresses. These need se
 ## Workspace features (v0-style)
 Tabs per app: Preview, Code (view and edit files), Chat (history), Versions (preview, restore as new app, deploy a chosen version), Share (download zip, push to GitHub, domains, delete).
 Import (sidebar): zip upload, or a public GitHub repo URL.
+The workspace subscribes to Postgres Changes on `public.apps` for the signed-in owner's rows and reloads the app list after changes and reconnects. Before enabling it in Supabase, confirm this is the project used by the deployment, add `apps` to the `supabase_realtime` publication, and ensure `apps` has an owner-scoped `SELECT` RLS policy. The subscription filter is not an authorization boundary. Generation status still polls the external generator because it only reaches Postgres when this app writes the resulting status.
 
 GitHub setup
 1. GitHub > Settings > Developer settings > OAuth Apps > New. Callback URL: `NEXT_PUBLIC_SITE_URL/api/github/callback`.
 2. Put the Client ID and secret in env. Generate `GITHUB_TOKEN_KEY` with `openssl rand -base64 32`.
-3. Run `supabase_migration_6.sql`.
+3. The initial Supabase migration creates the GitHub connections table.
 Push creates a private repo `masidy-<app>` on first push, then commits a full snapshot each time. Two-way sync (GitHub changes flowing back) is NOT built.
 
 VERIFY (names in `src/lib/v0.ts` come from the docs and are untested): findMessages, findVersions, getVersion (includeDefaultFiles), updateVersion, fork, init (files / repo), delete.

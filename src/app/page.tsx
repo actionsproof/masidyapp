@@ -67,7 +67,31 @@ export default function Home() {
     const { data } = sb.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => data.subscription.unsubscribe()
   }, [])
+
   useEffect(() => { if (session) load() }, [session, load])
+  useEffect(() => {
+    const userId = session?.user?.id
+    if (!userId) return
+
+    let hasConnected = false
+    const channel = sb.channel(`workspace:apps:${userId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'apps',
+        filter: `owner_id=eq.${userId}`,
+      }, () => { void load() })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          if (hasConnected) void load()
+          hasConnected = true
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setMsg('Live app updates are unavailable. Refresh to sync your workspace.')
+        }
+      })
+
+    return () => { void sb.removeChannel(channel) }
+  }, [session?.user?.id, load])
   useEffect(() => {
     if (!session || !launchAfterAuth || !prompt.trim()) return
     let cancelled = false
