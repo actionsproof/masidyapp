@@ -24,6 +24,7 @@ export default function Home() {
   const [session, setSession] = useState<any>(null)
   const [email, setEmail] = useState('')
   const [prompt, setPrompt] = useState('')
+  const [landingFiles, setLandingFiles] = useState<File[]>([])
   const [apps, setApps] = useState<any[]>([])
   const [credits, setCredits] = useState<number | null>(null)
   const [appId, setAppId] = useState<string | null>(null)
@@ -199,6 +200,12 @@ export default function Home() {
     if (r.records) setDns(r)
     load()
   }
+  function startFromLanding(e: React.FormEvent) {
+    e.preventDefault()
+    if (!prompt.trim()) return
+    document.getElementById('signin')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setMsg(landingFiles.length ? `Your prompt and ${landingFiles.length} file${landingFiles.length === 1 ? '' : 's'} are ready. Continue with email to open your workspace.` : 'Your prompt is ready. Continue with email to open your workspace.')
+  }
 
   if (!session) return (
     <main className="landing-shell">
@@ -212,7 +219,17 @@ export default function Home() {
           <p className="eyebrow"><span className="live-dot" /> The private AI workspace for shipping software</p>
           <h1 id="landing-title">Build the thing<br /><em>you&apos;ve been thinking about.</em></h1>
           <p className="hero-lede">Masidy turns plain language into a real, editable application. Explore the result, refine the code, connect your data, and deploy when it&apos;s ready.</p>
-          <div className="hero-actions"><a className="primary-cta" href="#signin">Create a project <span aria-hidden="true">→</span></a><a className="text-cta" href="#workflow">See how it works <span aria-hidden="true">↓</span></a></div>
+          <form className="landing-composer" onSubmit={startFromLanding}>
+            <label htmlFor="landing-prompt">What do you want to build?</label>
+            <textarea id="landing-prompt" value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="A customer portal with sign-in, billing, and a clean dashboard..." rows={3} />
+            <div className="composer-actions">
+              <label className="attach-action" htmlFor="landing-files">Attach files <span aria-hidden="true">+</span></label>
+              <input id="landing-files" type="file" multiple accept=".zip,.pdf,.txt,.md,.csv,.json,.png,.jpg,.jpeg" onChange={e => setLandingFiles(Array.from(e.target.files ?? []).slice(0, 5))} />
+              <span className="attachment-count">{landingFiles.length ? `${landingFiles.length} attached` : 'ZIP, docs, images'}</span>
+              <button className="composer-submit" type="submit">Start with Masidy <span aria-hidden="true">→</span></button>
+            </div>
+          </form>
+          <div className="hero-actions"><a className="text-cta" href="#workflow">See how it works <span aria-hidden="true">↓</span></a><a className="text-cta" href="#signin">Already have an account? Sign in <span aria-hidden="true">→</span></a></div>
           <p className="trust-line">No setup maze. No provider logos. Just your product, under your brand.</p>
         </div>
         <div className="hero-workspace" aria-label="Preview of the Masidy workspace">
