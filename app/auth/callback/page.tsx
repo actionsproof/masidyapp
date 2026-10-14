@@ -9,7 +9,10 @@ export default function AuthCallbackPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const supabase = createClient('/sb', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'build-placeholder')
+    const supabase = createClient(
+      `${window.location.origin}/sb`,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'build-placeholder',
+    )
     const params = new URLSearchParams(window.location.search)
     const code = params.get('code')
     const tokenHash = params.get('token_hash')
