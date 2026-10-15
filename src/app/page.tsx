@@ -1,6 +1,9 @@
 'use client'
+import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useState } from 'react'
 import { realtimeSupabase, supabase as sb } from '@/lib/browser-supabase'
+
+const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false })
 
 // Sign-in and data calls go through /sb on our own domain, so the browser never contacts the database supplier directly.
 const ROOT = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? ''
@@ -187,6 +190,11 @@ export default function Home() {
     const r = await call('/api/generate', { prompt, appId, quality, attachments })
     if (r) { setAppId(r.appId); setPrompt(''); setAttachments([]); setTab('preview'); await load(); poll(r.appId) }
   }
+  async function sendWorkspaceMessage() {
+    if (!prompt.trim() || !appId || busy || generating) return
+    await generate()
+    setTab('code')
+  }
   async function stop() { await call(`/api/app/${appId}/stop`, {}) }
   async function resume() { const r = await call(`/api/app/${appId}/resume`, {}); if (r) poll(appId!) }
   async function attach(f: File) {
@@ -334,14 +342,25 @@ export default function Home() {
             {tab === 'preview' && (preview ? <iframe key={previewKey} src={preview} style={{ width: '100%', height: '65vh', border: '1px solid #ccc' }} /> : <p>Loading preview...</p>)}
 
             {tab === 'code' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 8 }}>
-                <ul style={{ padding: 0, listStyle: 'none', maxHeight: '60vh', overflow: 'auto' }}>
-                  {files.map(f => <li key={f.name}><button style={{ fontWeight: f.name === fileSel ? 700 : 400 }} onClick={() => { setFileSel(f.name); setFileText(f.content) }}>{f.name}</button></li>)}
-                </ul>
-                <div>
-                  <textarea value={fileText} onChange={e => setFileText(e.target.value)} spellCheck={false} style={{ width: '100%', height: '55vh', fontFamily: 'monospace', fontSize: 13 }} />
-                  <button disabled={busy || !fileSel} onClick={saveFile}>Save file</button>
+              <div className="ide-shell" aria-label="Masidy development studio">
+                <div className="ide-chat-pane">
+                  <div className="ide-pane-title"><strong>Masidy agent</strong><span>{generating ? 'Working…' : 'Ready'}</span></div>
+                  <div className="ide-messages">
+                    {chat.map(m => <div key={m.id} className={`ide-message ${m.role === 'user' ? 'is-user' : ''}`}><b>{m.role === 'user' ? 'You' : 'Masidy'}</b><p>{m.text}</p></div>)}
+                    {!chat.length && <div className="ide-empty"><strong>Ask for a change</strong><p>Describe what you want to update. Masidy will edit the project and refresh the preview.</p></div>}
+                  </div>
+                  <div className="ide-chat-input"><textarea value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="Ask Masidy to change something…" rows={3} /><button disabled={busy || generating || prompt.length < 3} onClick={sendWorkspaceMessage}>Send</button></div>
                 </div>
+                <div className="ide-code-pane">
+                  <div className="ide-pane-title"><strong>Code</strong><button className="ide-save" disabled={busy || !fileSel} onClick={saveFile}>Save file</button></div>
+                  <div className="ide-code-layout">
+                    <ul className="ide-file-tree">
+                      {files.map(f => <li key={f.name}><button className={f.name === fileSel ? 'selected' : ''} onClick={() => { setFileSel(f.name); setFileText(f.content) }}>{f.name}</button></li>)}
+                    </ul>
+                    <div className="monaco-wrap"><MonacoEditor height="100%" language={fileSel?.endsWith('.css') ? 'css' : fileSel?.endsWith('.json') ? 'json' : fileSel?.endsWith('.tsx') || fileSel?.endsWith('.ts') ? 'typescript' : 'javascript'} theme="vs-dark" value={fileText} onChange={value => setFileText(value ?? '')} options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: 'on', padding: { top: 12 } }} /></div>
+                  </div>
+                </div>
+                <div className="ide-preview-pane"><div className="ide-pane-title"><strong>Preview</strong><span className="live-label"><i /> Live</span></div>{preview ? <iframe key={previewKey} src={preview} title="Live project preview" /> : <div className="preview-empty">Generate a project to see it here.</div>}</div>
               </div>
             )}
 
