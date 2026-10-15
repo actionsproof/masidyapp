@@ -1,9 +1,6 @@
 'use client'
-import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useState } from 'react'
 import { realtimeSupabase, supabase as sb } from '@/lib/browser-supabase'
-
-const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false })
 
 // Sign-in and data calls go through /sb on our own domain, so the browser never contacts the database supplier directly.
 const ROOT = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? ''
@@ -18,6 +15,7 @@ function authRedirectUrl() {
 const primaryUrl = (a: any) => a.custom_domain && a.custom_domain_verified ? `https://${a.custom_domain}` : a.subdomain ? `https://${a.subdomain}.${ROOT}` : null
 
 type Tab = 'preview' | 'code' | 'chat' | 'versions' | 'share'
+type WorkspaceSection = 'home' | 'projects' | 'chats' | 'design-systems' | 'templates'
 
 export default function Home() {
   const [session, setSession] = useState<any>(null)
@@ -53,6 +51,8 @@ export default function Home() {
   const [envKey, setEnvKey] = useState('')
   const [envVal, setEnvVal] = useState('')
   const [launchAfterAuth, setLaunchAfterAuth] = useState(false)
+  const [workspaceSection, setWorkspaceSection] = useState<WorkspaceSection>('home')
+  const [projectSearch, setProjectSearch] = useState('')
 
   const load = useCallback(async () => {
     const a = await sb.from('apps').select('id,name,status,subdomain,custom_domain,custom_domain_verified,github_repo,gen_status').order('created_at', { ascending: false })
@@ -190,11 +190,6 @@ export default function Home() {
     const r = await call('/api/generate', { prompt, appId, quality, attachments })
     if (r) { setAppId(r.appId); setPrompt(''); setAttachments([]); setTab('preview'); await load(); poll(r.appId) }
   }
-  async function sendWorkspaceMessage() {
-    if (!prompt.trim() || !appId || busy || generating) return
-    await generate()
-    setTab('code')
-  }
   async function stop() { await call(`/api/app/${appId}/stop`, {}) }
   async function resume() { const r = await call(`/api/app/${appId}/resume`, {}); if (r) poll(appId!) }
   async function attach(f: File) {
@@ -302,138 +297,150 @@ export default function Home() {
 
   const cur = apps.find(a => a.id === appId)
   const tabs: Tab[] = ['preview', 'code', 'chat', 'versions', 'share']
+  const visibleApps = apps.filter(a => a.name.toLowerCase().includes(projectSearch.toLowerCase()))
+  const templates = [
+    { name: 'SaaS dashboard', description: 'A polished product dashboard with navigation and data cards.', prompt: 'Build a polished SaaS dashboard with a sidebar, top navigation, summary cards, and a responsive analytics view.' },
+    { name: 'Landing page', description: 'A focused, responsive marketing page for a product.', prompt: 'Build a modern, responsive product landing page with a clear hero, benefits, social proof, and a strong call to action.' },
+    { name: 'Customer portal', description: 'A simple customer area for account and billing tasks.', prompt: 'Build a clean customer portal with account overview, billing details, and an easy-to-use responsive layout.' },
+  ]
+  const designDirections = [
+    { name: 'Quiet minimal', description: 'Restrained color, crisp type, generous spacing.', prompt: 'Use a quiet minimal design system: neutral surfaces, crisp typography, generous spacing, and subtle borders.' },
+    { name: 'Warm editorial', description: 'Warm paper tones, expressive type, human details.', prompt: 'Use a warm editorial design system: soft paper backgrounds, expressive typography, warm accent colors, and considered details.' },
+    { name: 'Bold product', description: 'Strong contrast, clear hierarchy, confident accents.', prompt: 'Use a bold product design system: high contrast, strong hierarchy, confident accent color, and clear interactive states.' },
+  ]
 
   return (
-    <main className="workspace-shell">
-      <aside className="workspace-sidebar">
-        <div className="workspace-brand"><span className="wordmark-mark">M</span><strong>masidy</strong></div>
-        <p className="workspace-tagline">Your private product studio</p>
-        <div className="credit-pill">Credits <b>{credits ?? '...'}</b></div>
-        <button className="new-project-button" onClick={() => { setAppId(null); setPreview(null); setLiveUrl(null); setDns(null); setTab('preview') }}>+ New project</button>
-        <p className="workspace-section-label">PROJECTS</p>
-        <details className="sidebar-tools"><summary>Workspace tools</summary>
-          <button onClick={() => buy('starter')}>Buy 50 credits</button> <button onClick={() => buy('pro')}>Buy 200</button>
-          <button onClick={() => sb.auth.signOut()}>Sign out</button>
+    <main className="studio-shell">
+      <aside className="studio-sidebar">
+        <div className="studio-brand"><span className="studio-brand-mark">M</span><strong>masidy&apos;s projects</strong><span className="studio-brand-caret">⌄</span></div>
+        <button className="studio-new-chat" onClick={() => { setAppId(null); setPreview(null); setLiveUrl(null); setDns(null); setWorkspaceSection('home'); setTab('preview') }}>New Chat <span>⌄</span></button>
+        <label className="studio-search"><span aria-hidden="true">⌕</span><input value={projectSearch} onChange={e => setProjectSearch(e.target.value)} placeholder="Search" aria-label="Search projects" /></label>
+        <nav className="studio-nav" aria-label="Workspace">
+          {([
+            ['home', '⌂', 'Home'],
+            ['projects', '▦', 'Projects'],
+            ['chats', '☷', 'Chats'],
+            ['design-systems', '◈', 'Design Systems'],
+            ['templates', '▤', 'Templates'],
+          ] as const).map(([section, icon, label]) => (
+            <button key={section} className={workspaceSection === section ? 'active' : ''} onClick={() => setWorkspaceSection(section)}>
+              <span aria-hidden="true">{icon}</span>{label}
+            </button>
+          ))}
+        </nav>
+        <details className="studio-import-menu">
+          <summary>Import a project</summary>
+          <div className="studio-import-controls">
+            <label>ZIP file<input type="file" accept=".zip" onChange={e => e.target.files?.[0] && void importZip(e.target.files[0])} /></label>
+            <input value={repoUrl} onChange={e => setRepoUrl(e.target.value)} placeholder="Public GitHub repository URL" aria-label="Public GitHub repository URL" />
+            <button disabled={busy || !repoUrl} onClick={() => void importRepo()}>Import repository</button>
+          </div>
         </details>
-        <details><summary>Import project</summary>
-          <p>Zip file: <input type="file" accept=".zip" onChange={e => e.target.files?.[0] && importZip(e.target.files[0])} /></p>
-          <input value={repoUrl} onChange={e => setRepoUrl(e.target.value)} placeholder="github.com/user/repo (public)" style={{ width: '100%' }} />
-          <button disabled={busy || !repoUrl} onClick={importRepo}>Import repo</button>
-        </details>
-        <ul style={{ padding: 0, listStyle: 'none' }}>
-          {apps.map(a => <li key={a.id}><button style={{ fontWeight: a.id === appId ? 700 : 400 }} onClick={() => open(a.id)}>{a.name} ({a.status})</button></li>)}
-        </ul>
+        <div className="studio-side-group">
+          <h3>Favorites</h3>
+          {apps.slice(0, 1).map(a => <button className="studio-side-item" key={a.id} onClick={() => { void open(a.id); setWorkspaceSection('home') }}>☆ <span>{a.name}</span></button>)}
+          {!apps.length && <p className="studio-side-empty">Projects you open will show here.</p>}
+        </div>
+        <div className="studio-side-group studio-project-list">
+          <div className="studio-side-heading"><h3>Projects</h3><span>{visibleApps.length}</span></div>
+          {visibleApps.map(a => <button className={`studio-side-item ${a.id === appId ? 'selected' : ''}`} key={a.id} onClick={() => { void open(a.id); setWorkspaceSection('home') }}><span className="studio-project-dot">{a.name.slice(0, 1).toUpperCase()}</span><span>{a.name}</span></button>)}
+          {!visibleApps.length && <p className="studio-side-empty">{projectSearch ? 'No matching projects.' : 'No projects yet.'}</p>}
+        </div>
+        <div className="studio-account">
+          <div><strong>{session?.user?.email?.split('@')[0] ?? 'Your account'}</strong><span>{credits ?? '…'} credits</span></div>
+          <button className="studio-credit-button" onClick={() => buy('starter')} aria-label="Buy 50 credits" title="Buy 50 credits">50</button>
+          <button className="studio-credit-button" onClick={() => buy('pro')} aria-label="Buy 200 credits" title="Buy 200 credits">200</button>
+          <button className="studio-logout" onClick={() => sb.auth.signOut()}>Log out</button>
+        </div>
       </aside>
 
-      <section className="workspace-content">
-        <header className="workspace-header">
-          <div><p className="workspace-kicker">{cur ? 'Project / ' + cur.name : 'New project'}</p><h1>{cur?.name ?? 'Create something real'}</h1></div>
-          <div className="workspace-header-actions"><span className="secure-badge">Private workspace</span>{appId && <button className="publish-button" disabled={busy} onClick={() => deploy()}>Publish live</button>}</div>
+      <section className="studio-main">
+        <header className="studio-topbar">
+          <div className="studio-breadcrumb">
+            {cur ? <><button onClick={() => setWorkspaceSection('projects')}>{cur.name}</button><span>›</span><span>{workspaceSection === 'home' ? tabs.find(t => t === tab)?.replace(/^./, x => x.toUpperCase()) : workspaceSection.replace('-', ' ')}</span></> : <><span className="studio-avatar">{session?.user?.email?.slice(0, 1).toUpperCase() ?? 'M'}</span><strong>{session?.user?.email?.split('@')[0] ?? 'Your'}&apos;s workspace</strong></>}
+          </div>
+          {cur && <div className="studio-top-actions"><button className="studio-quiet-button" onClick={() => setTab('share')}>Settings</button><button className="studio-icon-button" onClick={() => setWorkspaceSection('projects')} aria-label="Projects">＋</button><button className="studio-publish" disabled={busy || generating} onClick={() => deploy()}>↗ <span>Publish</span></button></div>}
         </header>
-        <div className="prompt-bar"><textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={3}
-          placeholder={appId ? 'Describe a change to your project...' : 'Describe the app you want to build...'} />
-        <select value={quality} onChange={e => setQuality(e.target.value as any)}>
-          <option value="fast">Fast (1 credit)</option><option value="best">Best quality (3 credits)</option>
-        </select>{' '}
-        <label>Attach images <input type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={e => Array.from(e.target.files ?? []).forEach(attach)} /></label>
-        {attachments.length > 0 && <span> {attachments.length} attached <button onClick={() => setAttachments([])}>Clear</button></span>}{' '}
-        <button disabled={busy || generating || prompt.length < 3} onClick={() => generate()}>{generating ? 'Working...' : appId ? 'Update' : 'Generate'}</button>
-        {generating && <button onClick={stop}>Stop</button>}
-        {!generating && cur?.gen_status === 'failed' && <button onClick={resume}>Resume</button>}
-        {appId && <button disabled={busy} onClick={() => deploy()}>Deploy live (2 credits)</button>}
-        <span className="prompt-status">{msg}</span>
-        {liveUrl && <p className="live-url">Live at <a href={liveUrl} target="_blank" rel="noreferrer">{liveUrl}</a></p>}
-        </div>
 
-        {appId && (
-          <>
-            <div style={{ margin: '12px 0' }}>{tabs.map(t => <button key={t} onClick={() => setTab(t)} style={{ fontWeight: t === tab ? 700 : 400, textTransform: 'capitalize' }}>{t}</button>)}</div>
-
-            {tab === 'preview' && (preview ? <iframe key={previewKey} src={preview} style={{ width: '100%', height: '65vh', border: '1px solid #ccc' }} /> : <p>Loading preview...</p>)}
-
-            {tab === 'code' && (
-              <div className="ide-shell" aria-label="Masidy development studio">
-                <div className="ide-chat-pane">
-                  <div className="ide-pane-title"><strong>Masidy agent</strong><span>{generating ? 'Working…' : 'Ready'}</span></div>
-                  <div className="ide-messages">
-                    {chat.map(m => <div key={m.id} className={`ide-message ${m.role === 'user' ? 'is-user' : ''}`}><b>{m.role === 'user' ? 'You' : 'Masidy'}</b><p>{m.text}</p></div>)}
-                    {!chat.length && <div className="ide-empty"><strong>Ask for a change</strong><p>Describe what you want to update. Masidy will edit the project and refresh the preview.</p></div>}
-                  </div>
-                  <div className="ide-chat-input"><textarea value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="Ask Masidy to change something…" rows={3} /><button disabled={busy || generating || prompt.length < 3} onClick={sendWorkspaceMessage}>Send</button></div>
+        {workspaceSection === 'home' && !appId && (
+          <div className="studio-home">
+            <div className="studio-home-content">
+              <div className="studio-provider-pill"><span>✳</span> Build with Masidy AI</div>
+              <h1>What do you want to create?</h1>
+              <div className="studio-composer">
+                <textarea value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="Ask Masidy to build..." rows={3} aria-label="Describe what you want to build" />
+                <div className="studio-composer-actions">
+                  <label className="studio-attach-button" title="Attach images">＋<input type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={e => Array.from(e.target.files ?? []).forEach(attach)} /></label>
+                  <select value={quality} onChange={e => setQuality(e.target.value as 'fast' | 'best')} aria-label="Generation quality"><option value="fast">Fast · 1 credit</option><option value="best">Best · 3 credits</option></select>
+                  <span className="studio-composer-spacer" />
+                  <select aria-label="Project type" defaultValue="project"><option value="project">Project</option></select>
+                  <button className="studio-generate" disabled={busy || generating || prompt.trim().length < 3} onClick={() => void generate()}>{generating ? 'Working…' : 'Generate'} <span>↗</span></button>
                 </div>
-                <div className="ide-code-pane">
-                  <div className="ide-pane-title"><strong>Code</strong><button className="ide-save" disabled={busy || !fileSel} onClick={saveFile}>Save file</button></div>
-                  <div className="ide-code-layout">
-                    <ul className="ide-file-tree">
-                      {files.map(f => <li key={f.name}><button className={f.name === fileSel ? 'selected' : ''} onClick={() => { setFileSel(f.name); setFileText(f.content) }}>{f.name}</button></li>)}
-                    </ul>
-                    <div className="monaco-wrap"><MonacoEditor height="100%" language={fileSel?.endsWith('.css') ? 'css' : fileSel?.endsWith('.json') ? 'json' : fileSel?.endsWith('.tsx') || fileSel?.endsWith('.ts') ? 'typescript' : 'javascript'} theme="vs-dark" value={fileText} onChange={value => setFileText(value ?? '')} options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: 'on', padding: { top: 12 } }} /></div>
-                  </div>
-                </div>
-                <div className="ide-preview-pane"><div className="ide-pane-title"><strong>Preview</strong><span className="live-label"><i /> Live</span></div>{preview ? <iframe key={previewKey} src={preview} title="Live project preview" /> : <div className="preview-empty">Generate a project to see it here.</div>}</div>
               </div>
-            )}
+              {attachments.length > 0 && <div className="studio-attachment-note">{attachments.length} image{attachments.length === 1 ? '' : 's'} attached <button onClick={() => setAttachments([])}>Remove</button></div>}
+              {(msg || !apps.length) && <p className="studio-status" role="status">{msg || 'Your projects will appear in the sidebar. Start by describing what you want to build.'}</p>}
+              <div className="studio-home-shortcuts"><button onClick={() => setWorkspaceSection('projects')}>Browse projects <span>→</span></button><button onClick={() => setWorkspaceSection('templates')}>Start from a template <span>→</span></button></div>
+            </div>
+          </div>
+        )}
 
-            {tab === 'chat' && (
-              <div style={{ maxHeight: '60vh', overflow: 'auto' }}>
-                {chat.map(m => <div key={m.id} style={{ margin: '8px 0', padding: 8, background: m.role === 'user' ? '#eef' : '#f6f6f6', whiteSpace: 'pre-wrap' }}><b>{m.role === 'user' ? 'You' : 'Masidy'}</b><br />{m.text}</div>)}
-                {!chat.length && <p>No messages yet.</p>}
-              </div>
-            )}
+        {workspaceSection === 'projects' && (
+          <div className="studio-library">
+            <div className="studio-library-heading"><div><p className="studio-kicker">WORKSPACE</p><h1>Your projects</h1><p>Open a project to continue in its preview, editor, chat, and version history.</p></div><button onClick={() => { setAppId(null); setWorkspaceSection('home') }}>＋ New project</button></div>
+            {visibleApps.length ? <div className="studio-project-grid">{visibleApps.map(a => <button className="studio-project-card" key={a.id} onClick={() => { void open(a.id); setWorkspaceSection('home') }}><div className="studio-project-card-icon">{a.name.slice(0, 1).toUpperCase()}</div><div><strong>{a.name}</strong><span>{a.status || 'Project'}{a.gen_status === 'generating' ? ' · Generating' : ''}</span></div><span className="studio-card-arrow">↗</span></button>)}</div> : <div className="studio-empty-card"><span>▦</span><h2>No projects yet</h2><p>Create a project from a prompt or import an existing ZIP or public GitHub repository.</p><button onClick={() => { setAppId(null); setWorkspaceSection('home') }}>Create a project</button><details><summary>Import a project instead</summary><div className="studio-import-controls"><label>ZIP file<input type="file" accept=".zip" onChange={e => e.target.files?.[0] && void importZip(e.target.files[0])} /></label><input value={repoUrl} onChange={e => setRepoUrl(e.target.value)} placeholder="Public GitHub repository URL" /><button disabled={busy || !repoUrl} onClick={() => void importRepo()}>Import repository</button></div></details></div>}
+          </div>
+        )}
 
-            {tab === 'versions' && (
-              <ul style={{ padding: 0, listStyle: 'none' }}>
-                {versions.map((v, i) => (
-                  <li key={v.id} style={{ margin: '6px 0' }}>
-                    Version {versions.length - i} {v.createdAt && `(${new Date(v.createdAt).toLocaleString()})`}{' '}
-                    {v.previewUrl && <button onClick={() => { setPreview(v.previewUrl); setPreviewKey(k => k + 1); setTab('preview') }}>Preview</button>}
-                    <button disabled={busy} onClick={() => fork(v.id)}>Restore as new app</button>
-                    <button disabled={busy} onClick={() => deploy(v.id)}>Deploy this</button>
-                  </li>
-                ))}
-              </ul>
-            )}
+        {workspaceSection === 'chats' && (
+          <div className="studio-library">
+            <div className="studio-library-heading"><div><p className="studio-kicker">WORKSPACE</p><h1>Chats</h1><p>Choose a project to view its conversation history.</p></div></div>
+            {visibleApps.length ? <div className="studio-project-grid">{visibleApps.map(a => <button className="studio-project-card" key={a.id} onClick={() => { void open(a.id); setWorkspaceSection('home'); setTab('chat') }}><div className="studio-project-card-icon">☷</div><div><strong>{a.name}</strong><span>Open project chat</span></div><span className="studio-card-arrow">→</span></button>)}</div> : <div className="studio-empty-card"><span>☷</span><h2>No project chats</h2><p>Chats are saved with their projects. Create or import a project to get started.</p></div>}
+          </div>
+        )}
 
-            {tab === 'share' && (
-              <div>
-                <p><button onClick={download}>Download as zip</button></p>
-                <p>
-                  <button onClick={githubConnect}>Connect GitHub</button>{' '}
-                  <button disabled={busy} onClick={githubPush}>Push to GitHub</button>{' '}
-                  {ghUrl && ghUrl !== 'linked' && <a href={ghUrl} target="_blank">{ghUrl}</a>}
-                  {ghUrl === 'linked' && <span>Linked to a repo. Push again to update it.</span>}
-                </p>
-                <details>
-                  <summary>Domains</summary>
-                  <div><input value={sub} onChange={e => setSub(e.target.value)} placeholder="myapp" />.{ROOT}
-                    <button disabled={busy} onClick={() => domain({ subdomain: sub })}>Set</button></div>
-                  <div><input value={custom} onChange={e => setCustom(e.target.value)} placeholder="mydomain.com" />
-                    <button disabled={busy} onClick={() => domain({ customDomain: custom })}>Add</button>
-                    <button disabled={busy} onClick={() => domain({ action: 'verify' })}>Check DNS</button></div>
-                  <div><input value={buyName} onChange={e => setBuyName(e.target.value)} placeholder="Find a domain: mybrand.com" />
-                    <button disabled={busy} onClick={search}>Search</button>
-                    {quote && (quote.available ? <span> {quote.domain} ${(quote.priceCents / 100).toFixed(2)}/yr <button disabled={busy} onClick={purchase}>Buy</button></span> : <span> taken</span>)}</div>
-                  {dns && (dns.verified ? <p>Domain verified.</p> : (
-                    <div>
-                      <p>Add these records at your domain provider, then press Check DNS. It can take a few hours.</p>
-                      {(dns.records ?? []).map((r: any, i: number) => <pre key={i}>{`Type: ${r.type}\nName: ${r.name}\nValue: ${r.value}`}</pre>)}
-                      <p>Use the CNAME for a subdomain, or the A record for a root domain.</p>
-                    </div>
-                  ))}
-                </details>
-                <details>
-                  <summary>Environment variables</summary>
-                  <p>{envKeys.length ? envKeys.join(', ') : 'None set. Deploy the app first, then add keys here.'}</p>
-                  <input value={envKey} onChange={e => setEnvKey(e.target.value.toUpperCase())} placeholder="KEY" />
-                  <input value={envVal} onChange={e => setEnvVal(e.target.value)} placeholder="value" type="password" />
-                  <button disabled={busy || !envKey} onClick={saveEnv}>Save</button>
-                  <button disabled={busy || !envKey} onClick={removeEnvVar}>Remove</button>
-                  <p>Changes apply the next time you deploy.</p>
-                </details>
-                <p><button disabled={busy} onClick={remove} style={{ color: 'crimson' }}>Delete app</button></p>
-              </div>
-            )}
-          </>
+        {workspaceSection === 'templates' && (
+          <div className="studio-library">
+            <div className="studio-library-heading"><div><p className="studio-kicker">GET STARTED</p><h1>Templates</h1><p>Choose a starting point, then customize it with your own prompt.</p></div></div>
+            <div className="studio-template-grid">{templates.map((item, index) => <article className="studio-template-card" key={item.name}><div className={`studio-template-art art-${index + 1}`}><span>{item.name}</span></div><h2>{item.name}</h2><p>{item.description}</p><button onClick={() => { setPrompt(item.prompt); setAppId(null); setWorkspaceSection('home') }}>Use template <span>→</span></button></article>)}</div>
+          </div>
+        )}
+
+        {workspaceSection === 'design-systems' && (
+          <div className="studio-library">
+            <div className="studio-library-heading"><div><p className="studio-kicker">DESIGN</p><h1>Design directions</h1><p>Choose a visual direction to add to your next build prompt. These are prompt presets, not saved design-system files.</p></div></div>
+            <div className="studio-template-grid">{designDirections.map((item, index) => <article className="studio-template-card" key={item.name}><div className={`studio-template-art direction-${index + 1}`}><span>{item.name}</span></div><h2>{item.name}</h2><p>{item.description}</p><button onClick={() => { setPrompt(current => `${current.trim()}${current.trim() ? '\n\n' : ''}${item.prompt}`); setAppId(null); setWorkspaceSection('home') }}>Use direction <span>→</span></button></article>)}</div>
+          </div>
+        )}
+
+        {workspaceSection === 'home' && appId && (
+          <div className="studio-project-workspace">
+            <div className="studio-project-header">
+              <div><p className="studio-kicker">{cur?.status || 'PROJECT'}</p><h1>{cur?.name || 'Project'}</h1></div>
+              {liveUrl && <a className="studio-live-link" href={liveUrl} target="_blank" rel="noreferrer">Open live app ↗</a>}
+            </div>
+            <div className="studio-tabbar" role="tablist" aria-label="Project tools">
+              {tabs.map(t => <button role="tab" aria-selected={t === tab} className={t === tab ? 'active' : ''} key={t} onClick={() => setTab(t)}>{t === 'preview' ? '◉' : t === 'code' ? '</>' : t === 'chat' ? '☷' : t === 'versions' ? '◷' : '↗'} <span>{t[0].toUpperCase() + t.slice(1)}</span></button>)}
+              <span className="studio-tab-spacer" />
+              <button className="studio-deploy-secondary" disabled={busy || generating} onClick={() => void deploy()}>Publish</button>
+            </div>
+            <div className="studio-project-prompt">
+              <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={2} placeholder="Ask for a change to this project..." aria-label="Describe a project change" />
+              <div><select value={quality} onChange={e => setQuality(e.target.value as 'fast' | 'best')} aria-label="Generation quality"><option value="fast">Fast · 1 credit</option><option value="best">Best · 3 credits</option></select><label className="studio-attach-button" title="Attach images">＋<input type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={e => Array.from(e.target.files ?? []).forEach(attach)} /></label><button disabled={busy || generating || prompt.trim().length < 3} onClick={() => void generate()}>{generating ? 'Working…' : 'Update project'}</button>{generating && <button className="studio-quiet-button" onClick={() => void stop()}>Stop</button>}{!generating && cur?.gen_status === 'failed' && <button className="studio-quiet-button" onClick={() => void resume()}>Resume</button>}</div>
+            </div>
+            {msg && <p className="studio-status" role="status">{msg}</p>}
+            <div className="studio-project-canvas">
+              {tab === 'preview' && (preview ? <iframe key={previewKey} title={`${cur?.name || 'Project'} preview`} src={preview} /> : <div className="studio-loading">Loading project preview…</div>)}
+              {tab === 'code' && <div className="studio-code-layout"><div className="studio-file-tree"><h2>Files</h2>{files.map(f => <button className={f.name === fileSel ? 'selected' : ''} key={f.name} onClick={() => { setFileSel(f.name); setFileText(f.content) }}>▤ <span>{f.name}</span></button>)}{!files.length && <p>Loading files…</p>}</div><div className="studio-code-editor"><div className="studio-editor-title">{fileSel || 'Select a file'}</div><textarea value={fileText} onChange={e => setFileText(e.target.value)} spellCheck={false} aria-label="File contents" /><div className="studio-editor-footer"><span>Changes are saved to a new project version.</span><button disabled={busy || !fileSel} onClick={() => void saveFile()}>Save file</button></div></div></div>}
+              {tab === 'chat' && <div className="studio-chat-history">{chat.map(m => <article className={`studio-message ${m.role === 'user' ? 'from-user' : ''}`} key={m.id}><strong>{m.role === 'user' ? 'You' : 'Masidy'}</strong><p>{m.text}</p></article>)}{!chat.length && <div className="studio-empty-inline"><h2>No messages yet</h2><p>Start a conversation by describing a change in the prompt above.</p></div>}</div>}
+              {tab === 'versions' && <div className="studio-version-list">{versions.map((v, i) => <article className="studio-version-card" key={v.id}><div><strong>Version {versions.length - i}</strong><span>{v.createdAt ? new Date(v.createdAt).toLocaleString() : 'Saved version'}</span></div><div>{v.previewUrl && <button className="studio-quiet-button" onClick={() => { setPreview(v.previewUrl); setPreviewKey(k => k + 1); setTab('preview') }}>Preview</button>}<button className="studio-quiet-button" disabled={busy} onClick={() => void fork(v.id)}>Restore as new app</button><button disabled={busy} onClick={() => void deploy(v.id)}>Publish this version</button></div></article>)}{!versions.length && <div className="studio-empty-inline"><h2>No saved versions</h2><p>Versions will appear here after you save project changes.</p></div>}</div>}
+              {tab === 'share' && <div className="studio-settings">
+                <section className="studio-settings-card"><h2>Share project</h2><p>Download your project files or push them to a GitHub repository.</p><div className="studio-setting-actions"><button onClick={() => void download()}>Download ZIP</button><button className="studio-quiet-button" onClick={() => void githubConnect()}>Connect GitHub</button><button className="studio-quiet-button" disabled={busy} onClick={() => void githubPush()}>Push to GitHub</button>{ghUrl && ghUrl !== 'linked' && <a href={ghUrl} target="_blank" rel="noreferrer">{ghUrl}</a>}{ghUrl === 'linked' && <span>Linked to a repository.</span>}</div></section>
+                <details className="studio-settings-card"><summary>Domains</summary><div className="studio-setting-fields"><div><label>Masidy subdomain</label><div className="studio-inline-field"><input value={sub} onChange={e => setSub(e.target.value)} placeholder="myapp" /><span>.{ROOT}</span><button disabled={busy} onClick={() => void domain({ subdomain: sub })}>Set</button></div></div><div><label>Custom domain</label><div className="studio-inline-field"><input value={custom} onChange={e => setCustom(e.target.value)} placeholder="mydomain.com" /><button disabled={busy} onClick={() => void domain({ customDomain: custom })}>Add</button><button className="studio-quiet-button" disabled={busy} onClick={() => void domain({ action: 'verify' })}>Check DNS</button></div></div><div><label>Find a domain</label><div className="studio-inline-field"><input value={buyName} onChange={e => setBuyName(e.target.value)} placeholder="mybrand.com" /><button disabled={busy} onClick={() => void search()}>Search</button>{quote && (quote.available ? <span>{quote.domain} · ${(quote.priceCents / 100).toFixed(2)}/yr <button disabled={busy} onClick={() => void purchase()}>Buy</button></span> : <span>Domain unavailable</span>)}</div></div>{dns && (dns.verified ? <p>Domain verified.</p> : <div><p>Add these DNS records, then check again.</p>{(dns.records ?? []).map((r: any, i: number) => <pre key={i}>{`Type: ${r.type}\nName: ${r.name}\nValue: ${r.value}`}</pre>)}</div>)}</div></details>
+                <details className="studio-settings-card"><summary>Environment variables</summary><p>{envKeys.length ? envKeys.join(', ') : 'None set. Deploy the project before adding keys.'}</p><div className="studio-inline-field"><input value={envKey} onChange={e => setEnvKey(e.target.value.toUpperCase())} placeholder="KEY" /><input value={envVal} onChange={e => setEnvVal(e.target.value)} placeholder="Value" type="password" /><button disabled={busy || !envKey} onClick={() => void saveEnv()}>Save</button><button className="studio-quiet-button" disabled={busy || !envKey} onClick={() => void removeEnvVar()}>Remove</button></div><p>Changes apply the next time you publish.</p></details>
+                <section className="studio-settings-card studio-danger-zone"><h2>Delete project</h2><p>This permanently removes the project and its hosted addresses.</p><button className="studio-danger-button" disabled={busy} onClick={() => void remove()}>Delete project</button></section>
+              </div>}
+            </div>
+          </div>
         )}
       </section>
     </main>

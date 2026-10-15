@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import './workspace.css'
 
 export const metadata: Metadata = {
   title: 'Masidy — Build and ship software',

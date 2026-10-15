@@ -1,4 +1,5 @@
 import '../src/app/globals.css'
+import '../src/app/workspace.css'
 
 export const metadata = {
   title: 'Masidy — Build and ship with AI',
