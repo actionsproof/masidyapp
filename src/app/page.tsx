@@ -304,13 +304,18 @@ export default function Home() {
   const tabs: Tab[] = ['preview', 'code', 'chat', 'versions', 'share']
 
   return (
-    <main style={{ maxWidth: 1100, margin: '0 auto', padding: 16, display: 'grid', gridTemplateColumns: '230px 1fr', gap: 16 }}>
-      <aside>
-        <h2 style={{ margin: '0 0 8px' }}>Masidy</h2>
-        <p>Credits: <b>{credits ?? '...'}</b> <button onClick={() => sb.auth.signOut()}>Log out</button></p>
-        <p><button onClick={() => buy('starter')}>Buy 50 credits</button> <button onClick={() => buy('pro')}>Buy 200</button></p>
-        <button onClick={() => { setAppId(null); setPreview(null); setLiveUrl(null); setDns(null); setTab('preview') }}>+ New app</button>
-        <details><summary>Import</summary>
+    <main className="workspace-shell">
+      <aside className="workspace-sidebar">
+        <div className="workspace-brand"><span className="wordmark-mark">M</span><strong>masidy</strong></div>
+        <p className="workspace-tagline">Your private product studio</p>
+        <div className="credit-pill">Credits <b>{credits ?? '...'}</b></div>
+        <button className="new-project-button" onClick={() => { setAppId(null); setPreview(null); setLiveUrl(null); setDns(null); setTab('preview') }}>+ New project</button>
+        <p className="workspace-section-label">PROJECTS</p>
+        <details className="sidebar-tools"><summary>Workspace tools</summary>
+          <button onClick={() => buy('starter')}>Buy 50 credits</button> <button onClick={() => buy('pro')}>Buy 200</button>
+          <button onClick={() => sb.auth.signOut()}>Sign out</button>
+        </details>
+        <details><summary>Import project</summary>
           <p>Zip file: <input type="file" accept=".zip" onChange={e => e.target.files?.[0] && importZip(e.target.files[0])} /></p>
           <input value={repoUrl} onChange={e => setRepoUrl(e.target.value)} placeholder="github.com/user/repo (public)" style={{ width: '100%' }} />
           <button disabled={busy || !repoUrl} onClick={importRepo}>Import repo</button>
@@ -320,9 +325,13 @@ export default function Home() {
         </ul>
       </aside>
 
-      <section>
-        <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={3} style={{ width: '100%', padding: 8 }}
-          placeholder={appId ? 'Describe a change...' : 'Describe the app you want...'} />
+      <section className="workspace-content">
+        <header className="workspace-header">
+          <div><p className="workspace-kicker">{cur ? 'Project / ' + cur.name : 'New project'}</p><h1>{cur?.name ?? 'Create something real'}</h1></div>
+          <div className="workspace-header-actions"><span className="secure-badge">Private workspace</span>{appId && <button className="publish-button" disabled={busy} onClick={() => deploy()}>Publish live</button>}</div>
+        </header>
+        <div className="prompt-bar"><textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={3}
+          placeholder={appId ? 'Describe a change to your project...' : 'Describe the app you want to build...'} />
         <select value={quality} onChange={e => setQuality(e.target.value as any)}>
           <option value="fast">Fast (1 credit)</option><option value="best">Best quality (3 credits)</option>
         </select>{' '}
@@ -332,8 +341,9 @@ export default function Home() {
         {generating && <button onClick={stop}>Stop</button>}
         {!generating && cur?.gen_status === 'failed' && <button onClick={resume}>Resume</button>}
         {appId && <button disabled={busy} onClick={() => deploy()}>Deploy live (2 credits)</button>}
-        <span> {msg}</span>
-        {liveUrl && <p>Live: <a href={liveUrl} target="_blank">{liveUrl}</a></p>}
+        <span className="prompt-status">{msg}</span>
+        {liveUrl && <p className="live-url">Live at <a href={liveUrl} target="_blank" rel="noreferrer">{liveUrl}</a></p>}
+        </div>
 
         {appId && (
           <>
